@@ -1,3 +1,4 @@
+    
 package nlptool;
 
 import java.util.*;
@@ -12,6 +13,7 @@ import edu.stanford.nlp.trees.*;
 
 public class SbSProcessor {
 	private static int hashbound = 16777216;
+	private static String RevFlag = "EsReVeR";
 	
 	public WordToSentenceProcessor<CoreLabel> sentencesegmentor = null;
 	public MaxentTagger postagger = null;
@@ -252,9 +254,28 @@ public class SbSProcessor {
     {
     	int hv = 19;
     	
+    	
     	for (int i = 0; i < tf.length(); i++)
     	{
     		hv = (11*hv + tf.charAt(i)) % hashbound;
+    	}
+    	
+    	return hv;
+    }
+    
+    public long ELFHash(String fstr)
+    {
+    	long hv = 0;
+    	long x = 0;
+    	
+    	for (int i = 0; i < fstr.length(); i++)
+    	{
+    	    hv = (hv<<4) + fstr.charAt(i);
+    	    if ((x=hv & 0xF0000000L) != 0)
+    	    {
+    	    	hv ^= (x>>24);
+        	    hv &= ~x;
+    	    }
     	}
     	
     	return hv;
@@ -271,21 +292,6 @@ public class SbSProcessor {
     	
     	return result;
     }
-    
-    public String Tags2Str(ArrayList<CoreLabel> tks)
-    {
-    	StringBuilder result = new StringBuilder();
-        for(CoreLabel cl : tks)
-        {
-        	
-        	result.append(cl.toString());
-        	result.append(";");
-        }
-        
-        return result.toString();
-    }
-    
-    
     
     public ArrayList<LanguageUnit> ParseSentence(String s)
     {
@@ -401,33 +407,33 @@ public class SbSProcessor {
     	//collect window
     	if ( lca == x )
     	{
-    		String xwd = "";
-    		if ( xlu.ancestors.GetNodeId() != -1)
-    		{
-    			xwd = lbs.get(xlu.ancestors.GetNodeId()).GetWord() + "d" + xlu.ancestors.GetEdgeType();
-    		}
+    		String xwd = lbs.get(xlu.ancestors.GetNodeId()).GetWord() + "d" + xlu.ancestors.GetEdgeType();
+    		result.append(MyHashString(xwd+xlu.GetNer()+mdstr.toString()+ylu.GetNer()));
+    		result.append(",");
+    		revresult.append(MyHashString("R"+xwd+xlu.GetNer()+mdstr.toString()+ylu.GetNer()));
+    		revresult.append(",");
     	    for ( Edge son : ylu.descendors)
     	    {
     	    	String ywd = "d" + son.GetEdgeType()+lbs.get(son.GetNodeId()).GetWord();
-    	    	result.append(MyHashString(xwd+xlu.GetNer()+mdstr+ylu.GetNer()+ywd));
+    	    	result.append(MyHashString(xwd+xlu.GetNer()+mdstr.toString()+ylu.GetNer()+ywd));
     	    	result.append(",");
-    	    	revresult.append(MyHashString("R"+xwd+xlu.GetNer()+mdstr+ylu.GetNer()+ywd));
+    	    	revresult.append(MyHashString("R"+xwd+xlu.GetNer()+mdstr.toString()+ylu.GetNer()+ywd));
     	    	revresult.append(",");
     	    }
     	}
     	else if (lca == y)
     	{
-    		String ywd = "";
-    		if ( ylu.ancestors.GetNodeId() != -1)
-    		{
-    			ywd = "u" + ylu.ancestors.GetEdgeType()+lbs.get(ylu.ancestors.GetNodeId()).GetWord();
-    		}
-    	    for ( Edge son : xlu.descendors)
+    		String ywd = "u" + ylu.ancestors.GetEdgeType()+lbs.get(ylu.ancestors.GetNodeId()).GetWord();
+    		result.append(MyHashString(xlu.GetNer()+mdstr.toString()+ylu.GetNer()+ywd));
+    		result.append(",");
+    		revresult.append(MyHashString("R"+xlu.GetNer()+mdstr.toString()+ylu.GetNer()+ywd));
+    		revresult.append(",");
+    		for ( Edge son : xlu.descendors)
     	    {
     	    	String xwd = lbs.get(son.GetNodeId()).GetWord() + "u" + son.GetEdgeType();
-    	    	result.append(MyHashString(xwd+xlu.GetNer()+mdstr+ylu.GetNer()+ywd));
+    	    	result.append(MyHashString(xwd+xlu.GetNer()+mdstr.toString()+ylu.GetNer()+ywd));
     	    	result.append(",");
-    	    	revresult.append(MyHashString("R"+xwd+xlu.GetNer()+mdstr+ylu.GetNer()+ywd));
+    	    	revresult.append(MyHashString("R"+xwd+xlu.GetNer()+mdstr.toString()+ylu.GetNer()+ywd));
     	    	revresult.append(",");
     	    }
     	}
@@ -456,6 +462,119 @@ public class SbSProcessor {
     	vh.add(result.toString());
     	vh.add(revresult.toString());
     	return vh;
+    }
+
+    public ArrayList<String> GenerateSyntacticFeatures(int x, int y, List<LanguageUnit> lbs)
+    {
+    	ArrayList<String> result = new ArrayList<String>();
+    	if ( x < 0 || x >= lbs.size() || y < 0 || y >= lbs.size()) return result;
+    	
+    	//get x's ancestors, y's ancestors
+    	ArrayList<Integer> xpth = new ArrayList<Integer>();
+    	LanguageUnit it = lbs.get(x);
+    	while (true)
+    	{
+    		xpth.add(it.GetIndex());
+    		if (it.ancestors.GetNodeId()>=0 && it.ancestors.GetNodeId()<lbs.size()) 
+    		{
+    		    it = lbs.get(it.ancestors.GetNodeId());
+    		}
+    		else 
+    		{
+    			break;
+    		}
+    	}
+    	if (xpth.get(xpth.size()-1)!=0) return result;
+    	ArrayList<Integer> ypth = new ArrayList<Integer>();
+    	it = lbs.get(y);
+    	while (true)
+    	{
+    		ypth.add(it.GetIndex());
+    		if (it.ancestors.GetNodeId()>=0 && it.ancestors.GetNodeId()<lbs.size()) 
+    		{
+    		    it = lbs.get(it.ancestors.GetNodeId());
+    		}
+    		else 
+    		{
+    			break;
+    		}
+    	}
+    	if (ypth.get(ypth.size()-1)!=0) return result;
+    	
+    	//find lca
+    	int idxx = xpth.size()-1, idxy = ypth.size()-1;
+    	while (idxx >= 0 && idxy >= 0)
+    	{
+    		if (xpth.get(idxx) != ypth.get(idxy)) break;
+    		idxx--;
+    		idxy--;
+    	}
+    	if (idxx<0 && idxy<0) return result;
+    	idxx++;
+    	idxy++;
+    	int lca = xpth.get(idxx);
+    	
+    	//construct middle feature
+    	StringBuilder mfstr = new StringBuilder();
+    	for (it = lbs.get(x); it.GetIndex() != lca; it = lbs.get(it.ancestors.GetNodeId()))
+    	{
+    		mfstr.append("u");
+    		mfstr.append(it.ancestors.GetEdgeType());
+    		mfstr.append(lbs.get(it.ancestors.GetNodeId()).GetWord());
+    	}
+    	for (int i = idxy-1; i >= 0; i--)
+    	{
+    		mfstr.append("d");
+    		mfstr.append(lbs.get(ypth.get(i)).ancestors.GetEdgeType());
+    		if ( ypth.get(i) != y )
+    		{
+    			mfstr.append(lbs.get(ypth.get(i)).GetWord());
+    		}
+    	}
+    	
+    	LanguageUnit xlu = lbs.get(x), ylu = lbs.get(y);
+    	//collect window
+    	if ( lca == x )
+    	{
+    		String xwd = lbs.get(xlu.ancestors.GetNodeId()).GetWord() + "d" + xlu.ancestors.GetEdgeType();
+    		result.add(xwd+xlu.GetNer()+mfstr.toString()+ylu.GetNer());
+    	    for ( Edge son : ylu.descendors)
+    	    {
+    	    	if (son.GetNodeId()<0 || son.GetNodeId()>=lbs.size()) continue;
+    	    	String ywd = "d" + son.GetEdgeType()+lbs.get(son.GetNodeId()).GetWord();
+    	    	result.add(xwd+xlu.GetNer()+mfstr.toString()+ylu.GetNer()+ywd);
+    	    }
+    	}
+    	else if (lca == y)
+    	{
+    		String ywd = "u" + ylu.ancestors.GetEdgeType()+lbs.get(ylu.ancestors.GetNodeId()).GetWord();
+    		result.add(xlu.GetNer()+mfstr.toString()+ylu.GetNer()+ywd);
+    		for ( Edge son : xlu.descendors)
+    	    {
+    			if (son.GetNodeId()<0 || son.GetNodeId()>=lbs.size()) continue;
+    	    	String xwd = lbs.get(son.GetNodeId()).GetWord() + "u" + son.GetEdgeType();
+    	    	result.add(xwd+xlu.GetNer()+mfstr.toString()+ylu.GetNer()+ywd);
+    	    }
+    	}
+    	else 
+    	{
+    	    	for(Edge xson : xlu.descendors)
+    	    	{
+    	    		if (xson.GetNodeId()<0 || xson.GetNodeId()>=lbs.size()) continue;
+    	    		for(Edge yson : ylu.descendors)
+    	    		{
+    	    			if (yson.GetNodeId()<0 || yson.GetNodeId()>=lbs.size()) continue;
+    	    			String xwd = lbs.get(xson.GetNodeId()).GetWord()+"u"+xson.GetEdgeType();
+    	    			String ywd = "d" + yson.GetEdgeType() + lbs.get(yson.GetNodeId()).GetWord();
+    	    			result.add(xwd+xlu.GetNer()+mfstr+ylu.GetNer()+ywd);
+    	    		}
+    	    	}
+    	}
+    	
+    	//no window:
+    	result.add(xlu.GetNer()+mfstr.toString()+ylu.GetNer());
+    	
+    	return result;
     }
     
     public ArrayList<String> GenerateLexicalX(int x,int y, List<LanguageUnit> rawinput)
@@ -558,6 +677,74 @@ public class SbSProcessor {
     	return vh;
     }
     
+    public ArrayList<String> GenerateLexicalFeatures(int x,int y, List<LanguageUnit> rawinput)
+    {
+    	ArrayList<String> rawfeatures = new ArrayList<String>();
+    	LanguageUnit xlu = rawinput.get(x);
+    	LanguageUnit ylu = rawinput.get(y);
+    	
+    	StringBuilder LexicalMiddle = new StringBuilder();
+    	for (int i = x + xlu.GetOccupyTks(); i < y && i < rawinput.size(); i = i + rawinput.get(i).GetOccupyTks())
+    	{
+    		LexicalMiddle.append(rawinput.get(i).GetWord());
+    	    LexicalMiddle.append(rawinput.get(i).GetPos());
+    	}
+    	rawfeatures.add(xlu.GetNer()+LexicalMiddle.toString()+ylu.GetNer());
+    	
+    	int l = x-1;
+    	String lw = "";
+    	while (l>0)
+    	{
+    		if (rawinput.get(l).GetIndex()==l)
+    		{
+    		    lw = rawinput.get(l).GetWord();
+    		    break;
+    		}
+    		l--;
+    	}
+    	if (l==0)
+    	{
+    		lw = "#PAD#";
+    	}
+    	String rw = "#PAD#";
+    	int r = y + ylu.GetOccupyTks();
+    	if (r < rawinput.size())
+    	{
+    		rw = rawinput.get(r).GetWord();
+    	}
+    	rawfeatures.add(lw+xlu.GetNer()+LexicalMiddle.toString()+ylu.GetNer()+rw);
+    	
+    	l--;
+    	while (l>0)
+    	{
+    		if (rawinput.get(l).GetIndex()==l)
+    		{
+    			lw = rawinput.get(l).GetWord()+lw;
+    		    break;	
+    		}
+    		l--;
+    	}
+    	if ( l <= 0 )
+    	{
+    		lw = "#PAD##PAD#";
+    	}
+    	if ( r < rawinput.size()) 
+    	{
+    	    r = r + rawinput.get(r).GetOccupyTks();
+    	}
+    	if ( r < rawinput.size())
+    	{
+    		rw = rw + rawinput.get(r).GetWord();
+    	}
+    	else 
+    	{
+    	    rw = rw + "#PAD#";
+    	}
+    	rawfeatures.add(lw+xlu.GetNer()+LexicalMiddle.toString()+ylu.GetNer()+rw);
+    	
+    	return rawfeatures;
+    }
+    
     public ArrayList<String> Observe(List<LanguageUnit> rawinput)
     {
     	ArrayList<String> result = new ArrayList<String>();
@@ -614,21 +801,90 @@ public class SbSProcessor {
         
     	return result;
     }
+    
+    public ArrayList<ArrayList<String>> ExtractFeaturesFromParsingResult(List<LanguageUnit> lbs)
+    {
+    	ArrayList<ArrayList<String>> result = new ArrayList<ArrayList<String>>();
+    	ArrayList<Integer> nes = new ArrayList<Integer>();
+    	
+    	for (int i = 0; i < lbs.size(); i = i+lbs.get(i).GetOccupyTks())
+    	{
+    		String curner = lbs.get(i).GetNer();
+
+    		if (curner.equals("PERSON") ||
+    			curner.equals("LOCATION") ||
+    			curner.equals("ORGANIZATION") ||
+    			curner.equals("MISC"))
+    		{
+    		    nes.add(i);
+    		}
+    	}
+    	
+        for (int i = 0; i < nes.size(); i++)
+        {
+        	for (int j = i+1; j < nes.size(); j++)
+        	{
+        		if (lbs.get(nes.get(i)).ancestors.GetNodeId()==-1 || 
+        		    lbs.get(nes.get(j)).ancestors.GetNodeId()==-1)
+        		{
+        			continue;
+        		}
+        		
+        		ArrayList<String> lex = GenerateLexicalFeatures(nes.get(i),nes.get(j),lbs);
+        	    ArrayList<String> syn = GenerateSyntacticFeatures(nes.get(i),nes.get(j),lbs);
+        		
+        		ArrayList<String> xi = new ArrayList<String>();
+        		xi.add(lbs.get(nes.get(i)).GetWord());
+        		xi.add(lbs.get(nes.get(i)).GetNer());
+        		xi.add(lbs.get(nes.get(j)).GetWord());
+        		xi.add(lbs.get(nes.get(j)).GetNer());
+        		xi.addAll(lex);
+        		xi.addAll(syn);
+        		result.add(xi);
+        		
+        		ArrayList<String> xiprime = new ArrayList<String>();
+        		xiprime.add(lbs.get(nes.get(j)).GetWord());
+        		xiprime.add(lbs.get(nes.get(j)).GetNer());
+        		xiprime.add(lbs.get(nes.get(i)).GetWord());
+        		xiprime.add(lbs.get(nes.get(i)).GetNer());
+        		for (String f : lex)
+        		{
+        			xiprime.add(RevFlag+f);
+        		}
+        		for (String f : syn)
+        		{
+        			xiprime.add(RevFlag+f);
+        		}
+        		result.add(xiprime);
+        	}
+        }
         
+    	return result;
+    }
+    
     public static void main(String[] args)
     {
-    	SbSProcessor ob = new SbSProcessor("E:/stanford-postagger-2013-06-20/stanford-postagger-2013-06-20/models/wsj-0-18-bidirectional-nodistsim.tagger", 
-    			"E:\\stanford-ner-2013-06-20\\stanford-ner-2013-06-20\\classifiers\\english.all.4class.distsim.crf.ser", 
-    			"E:/stanford-parser-full-2013-06-20/stanford-parser-full-2013-06-20/stanford-parser-3.2.0-models/edu/stanford/nlp/models/lexparser/englishPCFG.ser/englishPCFG.ser");
+    	SbSProcessor ob = new SbSProcessor("D:/v-zw/relation_extraction/code/stanford-postagger-2013-06-20/stanford-postagger-2013-06-20/models/wsj-0-18-bidirectional-nodistsim.tagger", 
+    			"D:/v-zw/relation_extraction/code/stanford-ner-2013-06-20/stanford-ner-2013-06-20/classifiers/english.conll.4class.distsim.crf.ser", 
+    			"D:/v-zw/relation_extraction/code/stanford-parser-full-2013-06-20/stanford-parser-full-2013-06-20/stanford-parser-3.2.0-models/edu/stanford/nlp/models/lexparser/englishPCFG.ser/englishPCFG.ser");
     
-        String s = "Barack Obama, the president of USA gave a talk for students of Machine Learning Group of MSRA about the application of machine learning in the Big Data era.";
-        for (String row : ob.Observe(ob.ParseSentence(s)))
+        //String s = "Barack Obama who is the president of USA gave a talk for students of Machine Learning Group of MSRA about the application of machine learning in the Big Data era.";
+        //String s = "Michael Jeffrey Jordan (born Febrary 17, 1963), also known by his initials, MJ, is an American former professional basketball player, entrepreneur, and majority owner and chairman of the Charlotte Bobcats.";
+        //String s = "Hillary Diane Rodham Clinton (;born October 26, 1947) was the 67th United States Secretary of State from 2009 to 2013, serving under President Barack Obama.";
+    	//String s = "Her daughter Sherylann Ramsaran has graduated with her Law Degree from the University of London, External Programme and is currently working on getting her Masters, among other accomplishments.";
+        String s = "His playing career at FC Barcelona Barcelona was ended by the Spanish Civil War Civil War .";
+    	ArrayList<LanguageUnit> lbs = ob.ParseSentence(s);
+        for(int i = 0; i < lbs.size(); i = i + lbs.get(i).GetOccupyTks())
         {
-        	System.out.print(row+"\n");
+        	System.out.print(lbs.get(i).GetIndex()+"\t"+lbs.get(i).GetWord()+"\t"+lbs.get(i).ancestors.GetNodeId()+"\n");
         }
-        for (String row : ob.Observepro(ob.ParseSentence(s)))
+        for (ArrayList<String> row : ob.ExtractFeaturesFromParsingResult(lbs))
         {
-        	System.out.print(row+"\n");
+        	for (String ele : row) 
+        	{
+        	    System.out.print(ele+"\t");
+        	}
+        	System.out.print("\n");
         }
         System.out.print("completed!");
     }
