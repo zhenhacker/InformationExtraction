@@ -1,0 +1,213 @@
+% !TEX TS-program = pdflatex
+% !TEX encoding = UTF-8 Unicode
+
+% This is a simple template for a LaTeX document using the "article" class.
+% See "book", "report", "letter" for other types of document.
+
+\documentclass[10pt]{article} % use larger type; default would be 10pt
+
+
+%begin personal config
+\usepackage{extarrows}
+\usepackage{chemarrow}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{calc} 
+\usepackage{forloop}
+\usepackage{framed}
+\usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{xcolor}
+\usepackage{mathpazo}
+\usepackage{lastpage}
+\usepackage{totcount}
+\usepackage[hmargin=2.5cm,vmargin=2.5cm]{geometry}
+
+\newtotcounter{calctotalmarks}
+\setcounter{calctotalmarks}{0} 
+\newcounter{forloopcounter}
+\newcommand{\putansline}[2]{\setcounter{forloopcounter}{1}\forloop{forloopcounter}{0}{\value{forloopcounter}< #1}{\par\vspace{\the\baselineskip}\dotfill}[#2]\addtocounter{calctotalmarks}{#2}}
+
+\theoremstyle{definition}
+\newtheorem{conclusion}{Conclusion}[subsection]
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[subsection]
+%finish personal config
+
+
+\usepackage[utf8]{inputenc} % set input encoding (not needed with XeLaTeX)
+
+%%% Examples of Article customizations
+% These packages are optional, depending whether you want the features they provide.
+% See the LaTeX Companion or other references for full information.
+
+%%% PAGE DIMENSIONS
+\usepackage{geometry} % to change the page dimensions
+\geometry{a4paper} % or letterpaper (US) or a5paper or....
+% \geometry{margin=2in} % for example, change the margins to 2 inches all round
+% \geometry{landscape} % set up the page for landscape
+%   read geometry.pdf for detailed page layout information
+
+\usepackage{graphicx} % support the \includegraphics command and options
+
+% \usepackage[parfill]{parskip} % Activate to begin paragraphs with an empty line rather than an indent
+
+%%% PACKAGES
+\usepackage{booktabs} % for much better looking tables
+\usepackage{array} % for better arrays (eg matrices) in maths
+\usepackage{paralist} % very flexible & customisable lists (eg. enumerate/itemize, etc.)
+\usepackage{verbatim} % adds environment for commenting out blocks of text & for better verbatim
+\usepackage{subfig} % make it possible to include more than one captioned figure/table in a single float
+% These packages are all incorporated in the memoir class to one degree or another...
+
+%%% HEADERS & FOOTERS
+\usepackage{fancyhdr} % This should be set AFTER setting up the page geometry
+\pagestyle{plain} % options: empty , plain , fancy
+\renewcommand{\headrulewidth}{0pt} % customise the layout...
+\lhead{}\chead{}\rhead{}
+\lfoot{}\cfoot{\thepage}\rfoot{}
+
+%%% SECTION TITLE APPEARANCE
+\usepackage{sectsty}
+\allsectionsfont{\sffamily\mdseries\upshape} % (See the fntguide.pdf for font help)
+% (This matches ConTeXt defaults)
+
+%%% ToC (table of contents) APPEARANCE
+\usepackage[nottoc,notlof,notlot]{tocbibind} % Put the bibliography in the ToC
+\usepackage[titles,subfigure]{tocloft} % Alter the style of the Table of Contents
+\renewcommand{\cftsecfont}{\rmfamily\mdseries\upshape}
+\renewcommand{\cftsecpagefont}{\rmfamily\mdseries\upshape} % No bold!
+
+%%% END Article customizations
+
+%%% The "real" document content comes below...
+
+\title{Distant Supervision for Relation Extraction}
+\author{Zhen Wang (v-zw)}
+%\date{} % Activate to display a given date or no date (if empty),
+         % otherwise the current date is printed 
+
+\begin{document}
+
+\maketitle
+\section{Background}
+Relational facts provided by knowledge bases (KB) can significantly improve the performance of many NLP applications. 
+Currently, the relations maintained by a KB are mainly tuples of two entities such as ``Founded(Jobs, Apple)'' which we call \emph{relation instance}. 
+To build a KB which is capable to cover worldly facts, an extractor which can discover relation instances from unstructured texts is required. 
+We construct such an extractor by training a multi-labels classifier where input is sentences contain the given entity pair (features are calculated from these sentences) and this pair is classified into one of the pre-defined relation types (or ``OTHER''). 
+
+
+Distant supervision (DS) provdies a paradigm to heuristically label a large corpus without human labor for training a relation extractor~\cite{mintz}. 
+Given 
+\begin{itemize}
+\item $\Sigma$, a large corpus such as Wikipedia articles, NYT, etc.
+\item $E$, a set of entities mentioned in $\Sigma$. 
+\item $R$, a set of relation types. 
+\item $\Delta$, a set of ground relation instances of relations in $R$. 
+\item $T$, a set of entity types, as well as type signature $r(E_1,E_2)$ for relations. 
+\end{itemize}
+where the last three elements are provided by KB such as Freebase, 
+for any sentence $s\in\Sigma$ that contains a pair of entity $(e_1,e_2)$, if $\exists{}r\in{}R$ such that $r(e_1,e_2)\in\Delta$, regard $s$ as expressing relation $r$. 
+Specifically, for each sentence $s\in\Sigma$, they use Stanford's named entity tagger to detect all named entities in $s$. 
+Within these detected entities, they consider every pair such as $(e_1,e_2)$. 
+If $\exists{}r\in{}R$ such that $r(e_1,e_2)\in\Delta$, they extract both lexical and syntactic features from $s$ with respect to $e1,e2$ and combine features extracted from \emph{all} mentions of $(e_1,e_2)$ 
+to form a positive example $(x_i,y_i)$ where $y_i=r$. 
+%where $x_i$ is combined features extracted from \emph{all} mentions of $(e_1,e_2)$ and $y_i=r$. 
+If $\forall{}r\in{}R,r(e_1,e_2)\notin\Delta$, a negative example is constructed. 
+
+
+\section{Related Work}
+Original DS leads to many false positive examples which may dilute the discriminative capability of useful features. 
+For instance, consider sentences ``Michael Jackson was born in Gary.'' and ``Michael Jackson moved from Gary.'', 
+suppose ``place\_of\_birth(Michael Jackson, Gary)'' is included in adopted KB, 
+since both of the two sentences contain the entity pair (Michael Jackson, Gary), features calculated from the two sentences are combined and labeled with ``place\_of\_birth''. 
+Obviously, the second mention does not express the labeled relation and thus contributes bad pattern to the labeled relation. 
+To alleviate such problem, Riedel et al.~\cite{riedel} relax original assumption to: if an entity pair participate in a relation, 
+\emph{at least one sentence} that mentions the pair might express that relaton. 
+In their model, each entity pair has a random variable $Y$ taking value from $R\cup{}\{\text{NA}\}$ and each mention of the entity pair has a binary random variable $\mathbf{Z}_i$ which is activated 
+if this mention indeed expresses the value of $Y$. 
+
+
+Inspired by such multi-instance learning model, \emph{multi-instance multi-label} model is proposed to handle relation overlapping. 
+For example, ``Founded(Jobs, Apple)'' and ``CEO-of(Jobs, Apple)'' are not exclusive. 
+The entity pair (Jobs, Apple) possesses both the two relations at the same time while Riedel et al. constrained each entity pair to only one relation ($Y$ for each entity pair) 
+which is not reasonable. 
+In Hoffmann et al.~\cite{hoffmann}'s model, each entity pair has a $\vert{}R\vert$-dimensional random variable $\mathbf{Y}$ ($\mathbf{Y}^{r}=1$ means the entity pair has relation $r$) instead of a single $Y=r$. 
+The label of this level is aggregated from the labels of mention level (each sentence mentions the entity pair has $\mathbf{Z}_j$ taking values from $R\cup{}\{\text{none}\}$) 
+through a deterministic OR operator. 
+The deterministic OR operator reflects the at least one assumption. 
+Surdeanu et al.~\cite{surdeanu} proposed a similar model. 
+Besides of the at least one feature, they also aggregate the labels for entity pairs from labels of their mentions with features that reflects dependencies between different relations of mentions. 
+Suppose all the mentions for ``(Jobs, Apple)'' in our corpus express the relation ``CEO-of'', 
+since the weak supervision is provided through labels of entity pair $\mathbf{Y}$ and adopted KB activates both $\mathbf{Y}^{\text{CEO-of}}$ and $\mathbf{Y}^{\text{Founded}}$, the former model may 
+make the mention level classifier associate some mention with ``Founded'' while the latter one may correctly classify all mentions 
+and keep $\mathbf{Z}$ and $\mathbf{Y}$ consistent by observing that $\mathbf{Z}_{j}=\text{``Founded''}$ and $\mathbf{Z}_{j}=\text{CEO-of}$ are generated jointly in many cases. 
+
+
+Min et al. add one layer to previous 3-layer multi-instance multi-label model. 
+The added layer ($\mathbf{l}$) models the relations of a entity pair. 
+Different from modeling and providing supervision at the same layer, they allow the supervision $\mathbf{y}_{i}^{r}=\text{Unlabeled}$ but $\mathbf{l}_{i}^{r}=\text{Positive}$. 
+Specifically, for an entity pair which does not appear in any relation in KB, its supervision $\mathbf{Y}=\mathbf{0}$ strongly suggests 
+that patterns extracted from mentions of the entity pair indicates ``none''. 
+In this model, the supervision is relaxed. 
+Patterns extracted from mentions of such entity pair also have opportunity to indicate a certain relation. 
+In a word, the 4-layer multi-instance multi-label model tend to make better use of unlabeled cases. 
+
+
+As you can see, all the above approaches ignored the false negative produced by both assumption of DS and incompleteness of KB. 
+Xu et al.~\cite{xu} propose a novel labeling strategy which leverages the entity types. 
+They divided sentences with respect to a relation $r$ into three classes: 
+\begin{itemize}
+\item $POS(r)=\{s\in\Sigma\vert{}s\text{ contains some }(e_1,e_2)\text{ where }r(e_1,e_2)\in\Delta\}$ 
+\item $RAW(r)=\{s\in\Sigma\vert{}s\text{ contains some }(e_1,e_2)\text{ of required types of }r\}$
+\item $NEG(r)=\{s\in\Sigma\vert{}s\text{ contains some }(e_1,e_2)\text{ of required types of }r\text{ where }\exists{}e_j\text{ such that }r(e_1,e_j)\in\Delta\text{ and }r(e_1,e_2)\notin\Delta\}$
+\end{itemize}
+Then a passage retrieval component (given a relation $r$ as query, retrieve sentences that are most likely to express $r$) is trained with positive examples $POS(r)$ and negative examples $NEG(r)$. 
+They use this component to select ``relevant'' passages (i.e., sentences) from $RAW(r)$ and then select entity pairs from these top-ranked sentences. 
+Selected entity pairs are added into KB to alleviate its incompleteness. 
+However, the entity pairs in $NEG(r)$ may be caused by incompleteness of KB itself. 
+Besides, $POS(r)$ are labeled according to original DS assumption as well as entity type requirement which is not always reliable as the ``(Micheal Jackson, Gary)'' example showed. 
+
+
+
+Takamatsu et al.~\cite{takamatsu} pointed that $91.7\%$ entity pairs appear only once in Wikipedia articles. 
+In such case, the at least one assumption is equivalent to original DS assumption for those multi-instance learning approaches. 
+Takamatsu et al. proposed a generative model to predict whether a pattern (they define a pattern as entity types as well as the sequence of words on the path of the dependency parse tree between the two entities such as ``[Person] born in [Location]'') express a target relation. 
+Intuitively, in our corpus, the entity types in a pattern will be instantiated by both entity pairs that are covered by KB and entity pairs that are unknown. 
+If the number of the former kind of entity pairs is much larger than the latter kind of entity pairs, the pattern is very likely to be associated with corresponding relations. 
+Thus we can revise some wrong label of unknown relation instances. 
+
+
+\section{Critical Factors}
+For simplicity, existing approaches made use of Stanford's named entity tagger which has only four broad entity types \{person, location, organization, miscellaneous, none\}. 
+In fact, most relations connect two entities where the entities belong to specific entity types such as ``compose(musician, song)''. 
+Besides, a relation can be expressed by various sentences but the entity types is much more stable which means that 
+entity type is discriminative to distinguish relatinos. 
+Someone may argue that named entity recognition (NER) is not easier than relation extraction and thus we can not treat NER as a subproblem of relation extraction. 
+Indeed, how to associate an entity to appropriate entity type is coupled with relation extraction. 
+Without the context, given that ``Apple'' is an organization and ``Jobs'' is a person, we will guess the entity pair is connected by relation ``CEO-of''. 
+Inversely, given ``product-of(ipad, Apple)'', we will guess that ``Apple'' is a company rather than one kind of fruits. 
+Generally speaking, the relaion between an entity and its type is \emph{isA}. 
+Given that ``isA($e_1, E_1$)'' and ``isA($e_2, E_2$)'', the most popular type of edges (i.e., relations) between hyponyms of $E_1$ and hyponyms of $E_2$ is a good choice for connecting $e_1, e_2$. 
+
+
+Feature space is extremely sparse because the lexical and syntactic features change in different mentions of different relations. 
+This is one of the reasons why Xu et al. use coarse features for training passage retrieval component. 
+%Takamatsu et al. define a pattern in that way so that variation of argument entity pairs is eliminated (only reqire matching of the entity type). 
+
+
+Original DS as well as those 3-layer multi-instance learning models suffer from incompleteness of KB. 
+The false negative examples make it difficult to classify one mention to appropriate relation 
+because sharing common features between negative examples and positive examples reduce the importance of these features which actually belong to positive examples. 
+The above 4-layer models seperate week supervision provided by KB from true labels of an entity pair 
+so that unlabeled pairs are allowed to have not existed relations which may be more consistent with their mention level labels. 
+However, there is still no a reasonable way to describe the dependencies between observed supervision and the layer that models labels of entity pairs. 
+Besides, as a multi-label classifier, for a certain relation, we actually regard all the other relations as well as the ``OTHER'' relation as negative examples for it. 
+However, relations are not exclusive. 
+%Multi-instance learning methods can not address such problem when the given entity pair appears only once in our corpus. 
+%In such cases, which relation will this mention be assigned is 
+\bibliographystyle{abbrv}
+\bibliography{survey}
+\end{document}
+
