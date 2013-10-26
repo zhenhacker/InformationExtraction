@@ -1,0 +1,208 @@
+% !TEX TS-program = pdflatex
+% !TEX encoding = UTF-8 Unicode
+
+% This is a simple template for a LaTeX document using the "article" class.
+% See "book", "report", "letter" for other types of document.
+
+\documentclass[10pt]{article} % use larger type; default would be 10pt
+
+
+%begin personal config
+\usepackage{extarrows}
+\usepackage{chemarrow}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{calc} 
+\usepackage{forloop}
+\usepackage{framed}
+\usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{xcolor}
+\usepackage{mathpazo}
+\usepackage{lastpage}
+\usepackage{totcount}
+\usepackage[hmargin=2.5cm,vmargin=2.5cm]{geometry}
+
+\newtotcounter{calctotalmarks}
+\setcounter{calctotalmarks}{0} 
+\newcounter{forloopcounter}
+\newcommand{\putansline}[2]{\setcounter{forloopcounter}{1}\forloop{forloopcounter}{0}{\value{forloopcounter}< #1}{\par\vspace{\the\baselineskip}\dotfill}[#2]\addtocounter{calctotalmarks}{#2}}
+
+\theoremstyle{definition}
+\newtheorem{conclusion}{Conclusion}[subsection]
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[subsection]
+%finish personal config
+
+
+\usepackage[utf8]{inputenc} % set input encoding (not needed with XeLaTeX)
+
+%%% Examples of Article customizations
+% These packages are optional, depending whether you want the features they provide.
+% See the LaTeX Companion or other references for full information.
+
+%%% PAGE DIMENSIONS
+\usepackage{geometry} % to change the page dimensions
+\geometry{a4paper} % or letterpaper (US) or a5paper or....
+% \geometry{margin=2in} % for example, change the margins to 2 inches all round
+% \geometry{landscape} % set up the page for landscape
+%   read geometry.pdf for detailed page layout information
+
+\usepackage{graphicx} % support the \includegraphics command and options
+
+% \usepackage[parfill]{parskip} % Activate to begin paragraphs with an empty line rather than an indent
+
+%%% PACKAGES
+\usepackage{booktabs} % for much better looking tables
+\usepackage{array} % for better arrays (eg matrices) in maths
+\usepackage{paralist} % very flexible & customisable lists (eg. enumerate/itemize, etc.)
+\usepackage{verbatim} % adds environment for commenting out blocks of text & for better verbatim
+\usepackage{subfig} % make it possible to include more than one captioned figure/table in a single float
+% These packages are all incorporated in the memoir class to one degree or another...
+
+%%% HEADERS & FOOTERS
+\usepackage{fancyhdr} % This should be set AFTER setting up the page geometry
+\pagestyle{plain} % options: empty , plain , fancy
+\renewcommand{\headrulewidth}{0pt} % customise the layout...
+\lhead{}\chead{}\rhead{}
+\lfoot{}\cfoot{\thepage}\rfoot{}
+
+%%% SECTION TITLE APPEARANCE
+\usepackage{sectsty}
+\allsectionsfont{\sffamily\mdseries\upshape} % (See the fntguide.pdf for font help)
+% (This matches ConTeXt defaults)
+
+%%% ToC (table of contents) APPEARANCE
+\usepackage[nottoc,notlof,notlot]{tocbibind} % Put the bibliography in the ToC
+\usepackage[titles,subfigure]{tocloft} % Alter the style of the Table of Contents
+\renewcommand{\cftsecfont}{\rmfamily\mdseries\upshape}
+\renewcommand{\cftsecpagefont}{\rmfamily\mdseries\upshape} % No bold!
+
+%%% END Article customizations
+
+%%% The "real" document content comes below...
+
+\title{Paper Reading}
+\author{Zhen Wang (v-zw)}
+%\date{} % Activate to display a given date or no date (if empty),
+         % otherwise the current date is printed 
+
+\begin{document}
+\maketitle
+\section{Learning New Facts From Knowledge Bases With Neural Tensor Networks and Semantic Word Vectors}
+\subsection{Goal}
+Baisically, they introduced their model to add additional facts to a database using only that database, i.e., 
+connect entities (objects or individuals) that were already present in database. 
+When represent unseen entities by distributional word vectors, their model can answer whether two entities are in certain relationship. 
+
+
+
+\subsection{Representation}
+\begin{itemize}
+\item words
+	\begin{itemize}
+	\item randomly initialize word vectors 
+	\item pre-trained $100$-dimensional word vectors
+	\end{itemize}
+\item entities: average the word vectors 
+\item relations: parameters of a neural tensor network (NTN) 
+\end{itemize}
+
+
+
+\subsection{Model} 
+How plausible two entities are in a certain relationship $r$ by a NTN based function: 
+\begin{equation}
+g(\mathbf{e}_1, r, \mathbf{e}_2) = U^{\mathrm{T}} tanh\{\mathbf{e}_{1}^{\mathrm{T}}W_{r}^{[1:k]}\mathbf{e}_2 + V_{r}\begin{bmatrix}\mathbf{e}_{1}\\\mathbf{e}_{2}\\\end{bmatrix} + \mathbf{b}_{r}\}
+\end{equation}
+where 
+\begin{itemize}
+\item $\mathbf{e}_1, \mathbf{e}_2$ are the $d$-dimensional vector representaion of entity $e_1, e_2$
+\item $W_{r}^{[1:k]}$ is a tensor and the bilinear tensor product results in a vector $\mathbf{h}\in\Re^k$ where $\mathbf{h}_{i}=\mathbf{e}_{1}^{\mathrm{T}}W_{r}^{[i]}\mathbf{e}_2$
+\item $V_{r}\in\Re^{k\times 2d}, U\in\Re^{k}, \mathbf{b}_{r}\in\Re^{k}$
+\end{itemize}
+
+
+
+\subsection{Parameter Estimation}
+Train the parameters $W, U, V, E, b$ by maximizing a contrastive max-margin objective:
+\begin{equation}
+J(W, U, V, E, b) = \sum_{i=1}^{N}\sum_{c=1}^{C}\max(0, 1-g(e_{1}^{(i)},r^{(i)},e_{2}^{(i)}) + g(e_{1}^{(i)}, r^{(i)}, e_{c}))
+\end{equation}
+where $N$ is the number of ground truth triples and for each gold triple, we sample $C$ random corrupted entities. 
+
+
+
+\subsection{Experiments}
+Use WordNet data 
+\begin{itemize}
+\item $38,696$ entities 
+\item $11$ relations 
+\item $112,581$ triples for training
+\item $10,544$ triples for testing
+\end{itemize}
+The considered relations all reflect a hierarchical structure rather than those in Freebase. 
+
+
+
+For each triple $(e_1, r, e_2)$, computing $g(e1, r, e)$ for each entity in KB and check the rank of the correct entity $e_2$. 
+
+
+
+\section{Connecting Language and Knowledge Bases with Embedding Models for Relation Extraction}
+\subsection{Goal}
+As usual, aimed at extracting relation instances from free text. 
+
+
+
+\subsection{Representation}
+Words, entities and relations are all represented by embeddings. 
+Denote vocabulary, entity set, relation set as $\mathcal{V}, \mathcal{E}, \mathcal{R}$ and their cardinality by $n_v, n_e, n_r$. 
+A mention is a words window of size $k$. 
+
+
+\subsection{Model}
+They proposed two models:
+\begin{itemize}
+\item one scores mention-relation pairs $S_{m2r}(m,r)=\mathbf{f}(m)^{\mathrm{T}}\mathbf{r}$ where 
+	\begin{itemize}
+	\item $\mathbf{f}(m)=\mathbf{W}^{\mathrm{T}}\boldsymbol{\Phi}(m)$ where $\boldsymbol{\Phi}(m)$ is the (sparse) binary representation of $m$ and $\mathbf{W}$ is a matrix consisting of all the word embeddings
+	\item $\mathbf{r}$ is the embedding of relation $r$
+	\end{itemize}
+\item one scores relation instances (triples) $S_{kb}(\mathbf{h},\mathbf{r},\mathbf{t})=-\Vert\mathbf{h}+\mathbf{r}-\mathbf{t}\Vert_{2}^{2}$ where  
+	\begin{itemize}
+	\item $\mathbf{h},\mathbf{r},\mathbf{t}$ are the embeddings of source entity, relation, destination entity 
+	\item the embedding of $r$ is a translation from $\mathbf{h}$ to $\mathbf{t}$
+	\end{itemize}
+\end{itemize}
+
+
+
+\subsection{Parameter Estimation}
+For the first model, 
+\begin{itemize}
+\item distant supervision provides training data $\{(m_i, r_i), i=1,\ldots,\vert D \vert\}$
+\item use a constraint that $\forall i, j, \forall r'\neq r_j, \mathbf{f}(m_i)^{\mathrm{T}}\mathbf{r}_i > 1 + \mathbf{f}(m_j)^{\mathrm{T}}\mathbf{r}'$
+\end{itemize}
+The prediction of a input mention is the relatioin which achieves largest $S_{m2r}$. 
+
+
+
+For the second model, 
+\begin{itemize}
+\item knowledge base itself provides training data $\{(\mathbf{h}_i, \mathbf{r}_{i}, \mathbf{t}_{i}, i=1,\ldots,|S|)\}$
+\item $\forall i, \forall h'\neq h_i, S_{kb}(\mathbf{h}_i,\mathbf{r}_i,\mathbf{t}_i)\geq 1+S_{kb}(\mathbf{h}',\mathbf{r}_i,\mathbf{t}_i)$ ($\mathbf{r}_i, \mathbf{t}_i$ can also be replaced by a corrupted one)
+\item calibrate the score as $\grave{S_{kb}}(\mathbf{h}, \mathbf{r}, \mathbf{t})=\Phi(\sum_{r'\neq r}\delta(S_{kb}(\mathbf{h},\mathbf{r},\mathbf{t}) > S_{kb}(\mathbf{h},\mathbf{r}',\mathbf{t})))$ where $\Phi(x)=1$ if $x<t$ and $0$ otherwise 
+\end{itemize}
+Given a entity pair $h,t$, rank all relations by $S_{kb}$. 
+
+
+\subsection{Experiment}
+Freebase + New York Times and Precision / Recall curve reflects a significant improvement. 
+
+
+%\bibliographystyle{abbrv}
+%\bibliography{survey}
+\end{document}
+
