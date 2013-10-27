@@ -90,21 +90,73 @@
 
 \begin{document}
 \maketitle
-\section{Background}
-As the amount of electronic text corpora becomes larger and larger, discovering structured information from unstructured natural language attracts more and more attention from both academic and industry communities. 
-Currently, the structured information in which we are interested is ordered binary \emph{relation} such as 'CEO-of', 'Born-in', 'Contains', etc. 
-We call a concrete ordered entity pair \emph{relation instance}. 
-For instance, '(Steve Jobs, Apple)' is an instance of the relation 'CEO-of'. 
-Relation extraction is tasked with harvesting many unseen relation instances from a text corpus. 
+\section{Introduction}
+Knowedge base (KB) is a systematical way to organize worldly facts together which is proved to be very helpful for many natural language processing (NLP) applications such as question answering (QA). 
+The state-of-the-art KB such as Freebase maintains millions of \emph{entities} (individuals or objects) and thousands of kinds of \emph{relations} between entities. 
+Currently, the relations in which we are interested are mainly binary relations such as 'CEO-of', 'Born-in', 'Contains', etc. 
+Binary relations are the building blocks of more complex relationships. 
+Regarding each entity as a node and each binary relation as one kind of directed edge, the node 'Steve Jobs' and the node 'Apple' are connected by an edge of kind 'CEO-of' in Freebase. 
+We say that the entity pair '(Steve Jobs, Apple)' is an \emph{relation instance} of the relation 'CEO-of'. 
+
+
+
+To construct an open domain KB which provides many useful prior for downstream applications, manually annotating a lot of relation instances is not practical. 
+As the amount of electronic text corpora becomes larger and larger, discovering structured information from unstructured natural language attracts more and more attention from both academic and industry communities.
+Many approaches have been proposed to explore the possibility of automatically augmenting or even constructing a KB from a given text corpus. 
+Since there have been several KB which are comparatively large, some efforts have been devoted to learning new facts from KB itself. 
+%Currently, the structured information in which we are interested is ordered binary \emph{relation} such as 'CEO-of', 'Born-in', 'Contains', etc. 
+%We call a concrete ordered entity pair \emph{relation instance}. 
+%For instance, '(Steve Jobs, Apple)' is an instance of the relation 'CEO-of'. 
+In summary, the task of \emph{Relation extraction} have the following different scenarios:
+\begin{itemize}
+\item relation types 
+	\begin{itemize}
+	\item only pre-defined relations are considered 
+	\item to discover unseen relations which are explicitly expressed by a surface string or characterized by a collection of related instances 
+	\end{itemize}
+\item entity types 
+	\begin{itemize}
+	\item only existed entities are considered 
+	\item unseen entities are detected from some source 
+	\end{itemize}
+\item source of novel facts 
+	\begin{itemize}
+	\item discovering novel relation instances from a text corpus 
+	\item predicting missing edges in existed KB to augment it with new facts 
+	\end{itemize}
+\item which element to be predicted, i.e., considering an relation instance as a triple $(e,p,v)$ where $p$ is the predicate (relation), the form of problem is 
+	\begin{itemize}
+	\item relation prediction: given $(e, v)$ to guess $p$
+	\item slot filling (i.e., one sub-task of knowledge base population (KBP)): given $e, p)$ to guess $v$
+	\end{itemize}
+\end{itemize}
+In this survey, we mainly consider the scenario of harvesting many unseen relation instances from a text corpus. 
+In our setting, unseen entities are detected and taken into consideration but we only try to extract facts for pre-defined relations. 
+
+
+
 As a sub-task of information extraction, most previous works assume that there is an oracle which is capable to detect named entities from input text snippets and classify each entity to one of pre-defined classes (i.e., entity types). 
 Then they focus on judging whether an entity pair posseses some relation. 
-In a supervised learning scenario, a training set is manually annotated where an observation is an entity pair as well as its feature representation and label is the relation connecting the two entities. 
-Since building such a training set is costly and not practical for scaling up, supervised learning for relation extraction is limited to small dataset or specific domain. 
-On the other hand, unsupervised learning aggregates similar relation instances together by discovering the intrinsic strucrue within their feature space. 
-Thus, unsupervised learning for relation extraction can be applied to very large text corpora. 
-However, it is difficult to map each cluster of relation instances to a canonical realtion type defined in existed knowledge bases (KB) and thus novel relation instances can not be immediately inserted into KB. 
-Distant supervision (DS)~\cite{mintz} provdies a paradigm to heuristically label a large corpus without human labor for training a relation extractor. 
-DS assumes that given 
+Like most classification problems, existing approaches can be divided into the following three genres: 
+\begin{itemize}
+\item supervised learning: a training set is manually annotated where an observation is an entity pair as well as its feature representation and label is the relation connecting the two entities. 
+	\begin{itemize}
+	\item advantage: clean training data means ensurance of precision 
+	\item disadvantage: building such a training set is costly and not practical for scaling up. Thus it is limited to small dataset or specific domain
+	\end{itemize}
+\item unsupervised learning: aggregates similar relation instances together by discovering the intrinsic strucrue within their feature space 
+	\begin{itemize}
+	\item advantage: can be applied to very large text corpora 
+	\item disadvantage: it is difficult to map each cluster of relation instances to a canonical realtion type defined in existed KB and thus novel relation instances can not be immediately inserted into KB
+	\end{itemize}
+\item Distant supervision (DS)~\cite{mintz}: provdies a paradigm to heuristically label a large corpus without human labor for training a relation extractor. 
+\end{itemize}
+In this survey, we focus on distant supervision for relation extraction. 
+
+
+
+\section{Distant Supervision for Relation Extraction}
+DS~\cite{mintz} heuristically labels data based on a simple assumption that given 
 %The larger a text corpus is, the larger the training set generated by DS will be. 
 %This promising feature results from the assumption of DS that given 
 \begin{itemize}
@@ -112,13 +164,25 @@ DS assumes that given
 \item $E$, a set of entities mentioned in $\Sigma$ e.g., 'Barack Obama', 'Gone with the wind', etc. 
 \item $R$, a set of relation types e.g., 'CEO-of', 'Born-in', etc. 
 \item $\Delta$, a set of ground relation instances of relations in $R$ e.g., 'CEO-of(Steve Ballman, Microsoft)', 'Born-in(Barack Obama, Ohio)', etc. 
-\item $T$, a set of entity types e.g., 'PER', 'ORG, 'LOC', etc, as well as type signature $r(E_1,E_2)$ for relations e.g., '(PER, LOC)' for 'Born-in'. 
+\item $T$, a set of entity types e.g., 'PER', 'ORG, 'LOC', etc, as well as type signature $r(E_1,E_2)$ for relations e.g., 'Born-in(PER, LOC)'. 
 \end{itemize}
-for any sentence $s\in\Sigma$ that contains a pair of entity $(e_1,e_2)$, if $\exists{}r\in{}R$ such that $r(e_1,e_2)\in\Delta$, regard $s$ as an expression of relation $r$. 
-Specifically, for each sentence $s\in\Sigma$, they use Stanford's named entity tagger to detect all named entities in $s$. 
-For each entity pair, if $\exists{}r\in{}R$ such that $r(e_1,e_2)\in\Delta$, they extract both lexical and syntactic features from $s$ w.r.t. $(e1,e2)$ and combine features extracted from \emph{all} mentions of $(e_1,e_2)$ 
-to form a positive example $(x_i,y_i)$ where $x_i$ is the aggregated features of $(e_1,e_2)$ and $y_i=r$. 
-If $\forall{}r\in{}R,r(e_1,e_2)\notin\Delta$, a negative example is constructed. 
+for any sentence $s\in\Sigma$ that contains a pair of entity $(e_1,e_2)$, if $\exists{}r\in{}R$ s. t. $r(e_1,e_2)\in\Delta$, regard $s$ as an expression of relation $r$. 
+
+
+
+As a running example, for the sentence 'Obama was born in Ohio', they use Stanford's named entity tagger to detect all named entities $\{\text{'Obama', 'Ohio'}\}$ in the sentence. 
+For each entity pair i.e., '(Obama, Ohio)' in this case, suppose 'CEO-of(Obama, Ohio)' is a ground relation instance in Freebase, they extract both lexical and syntactic features from this sentence w.r.t. '(Obama, Ohio)'. 
+A typical lexical feature is the sequence of both tokens and part-of-speech (POS) tags between the two entities, i.e., 'was/V born/V in/PP' in this example. 
+A typical Syntactic feature is the seqence of dependency path between the two entities. 
+Finally, they combine features extracted from \emph{all} mentions of '(Obama, Ohio)' to form a positive example---($x_{i}=$features, $y_{i}=$'CEO-of'). 
+if '(Obama, Ohio)' is not a instance of any relation in Freebase, a negative example is constructed in a similar way. 
+%Specifically, for each sentence $s\in\Sigma$, they use Stanford's named entity tagger to detect all named entities in $s$. 
+%For each entity pair, if $\exists{}r\in{}R$ such that $r(e_1,e_2)\in\Delta$, they extract both lexical and syntactic features from $s$ w.r.t. $(e1,e2)$ and combine features extracted from \emph{all} mentions of $(e_1,e_2)$ 
+%to form a positive example $(x_i,y_i)$ where $x_i$ is the aggregated features of $(e_1,e_2)$ and $y_i=r$. 
+%If $\forall{}r\in{}R,r(e_1,e_2)\notin\Delta$, a negative example is constructed. 
+
+
+
 The larger a text corpus is, the larger the training set generated by DS will be. 
 Although this promising property has made DS for relation extraction one of the hottest research topics, it still posseses some challenging problems. 
 In this survey, we will analysis these problems and discuss related works that made efforts to solve these problems. 
@@ -129,31 +193,47 @@ In this survey, we will analysis these problems and discuss related works that m
 \subsection{Named Entity Recognition (NER)}
 Firstly, the assumption of the existence of a perfect NER tagger does not make sense. 
 Most of previous works made use of the Stanford NER tagger with a 4-classes label set $\{\text{'PER', 'ORG', 'LOC', 'MISC', 'NONE'}\}$. 
-I thought up 30 entities (each category has 10 entities) include 'Hong Kong', 'Los Angeles', 'Opec', 'NCAA', 'Nixon' and 'Bill Gates', etc.
+I thought up 30 entities (each category has 10 entities) include 'Hong Kong', 'Los Angeles', 'Opec', 'NCAA', 'Nixon' and 'Bill Gates', etc. 
 Then I checked their NER tags within each mention of them. 
 According to my observation, the Stanford NER tagger can classify entities without ambiguity into their appropriate classes with high accuracy (about 92\%). 
 However, there are many ambiguous names which refer to different entities under different contexts. 
 For example, 'Barcelona' may be a city or a football club where the corresponding NER tag should be 'LOC' or 'ORG'. 
-In 72 mentions, the tag of 'Barcelona' is 'ORG' but only 35 of these mentions are indeed talking about that famous football club. 
-On the other hand, there are 65 mentions in which 'Barcelona' refers to the city in Spain but only 28 of them are tagged as 'LOC'. 
+Within $72$ mentions of 'Barcelona' where the NER tags are labeled as 'ORG', only $35$ of them are indeed talking about that famous football club. 
+On the other hand, there are $65$ mentions in which 'Barcelona' refers to the city in Spain but only 28 of them are tagged as 'LOC'. 
 Similar cases are ubiquitous. 
+
+
+
 Duing to this reason, original DS for relation extraction align KB to text corpus without type checking 
-(i.e., they do not check whether the NER tags of $(e_1,e_2)$ obey the type signature $r(E_1,E_2)$). 
-However, all of adopted lexical and syntactic features include the NER tags as part of them. 
-Thus, features (patterns or expressions) of the relation 'Contained(LOC, LOC)' will include features like 'ORG of/PP LOC' 
-because in the mention 'Barcelona of Spain', 'Barcelona' is tagged with 'ORG'. 
-Although type signature is a strong and reliable constraint for a relation, this noisy pattern dilutes the discriminative capability of it. 
+(i.e., they do not check whether the NER tags of $(e_1,e_2)$ is consistent with the type signature $r(E_1,E_2)$). 
+However, all the lexical and syntactic features include the NER tags as part of them and thus bring in noisy patterns. 
+For instance, if 'Barcelona' is tagged with 'ORG' in the sentence 'We went to Barcelona, Spain' and the ground relation instance 'Contained(Barcelona, Spain)' is aligned to this sentence, 
+Features collected for 'Contained' will include the incorrect entity type (i.e., 'ORG') which is definitely the noise. 
+%For instance, features (patterns or expressions) of the relation 'Contained(LOC, LOC)' will include features like 'ORG of/PP LOC' 
+%because in the mention 'Barcelona of Spain', 'Barcelona' is tagged with 'ORG'. 
+Although type signature is a strong and reliable constraint for a relation, those noisy patterns dilute the discriminative capability of it. 
+
+
+
 I also checked the mentions of entity pairs that are predicted as 'Contains(LOC, LOC)' by classifier but are actually instances of other relation in adopted KB. 
 Within these mentions, most of names refering to a movie or a book are incorrectly tagged as 'LOC'. 
 I think that Stanford NER tagger is a little conservative to announce 'MISC' which possesses the largest number of ambiguous names and is the bottleneck of NER task in my opinion. 
 Someone may find it helpful to improve NER with relation information. 
 For instance, suppose the relation instance 'Act-in(Bogart, Casablanca)'$\in\Delta$ and it can be aligned to a sentence, then we know that 'Casablanca' in this sentence refers to a movie instead of a city. 
+This observation tells us that relation information is beneficial for NER. 
 Another issue related to entity types are their granulity. 
 There are some samll relations (e.g., 'Director-of', 'Writer-of') which may benefit from a fine-grained entity types (e.g., 'Director', 'Writer') because only a small fraction of entities belong to 'PERSON' are actually 'Director'/'Writer'. 
 Training a tagger which predicts fine-grained entity types is helpful for improving the performance of relation extraction but it is difficult to ensure the tagger's accuracy when the number of classes (entity types) increases. 
+
+
+
 \subsection{Quality of Training Data}
-Another problem is the heuristic used to label data. 
+As a weak supervision framework, the quality of training data which is heuristically labeled is not as high as the quality of manually annotated training data. 
+%Another problem is the heuristic used to label data. 
 As you can see, original assumption results both false positive examples and false negative examples. 
+
+
+
 When two different relations share a common entity pair, each sentence contains this entity pair will generate positive examples for both the two relations. 
 However, each sentence (mention) expresses one of the two relations. 
 For example, 'Michael Jackson gave a show in Gary.' expresses 'Work-at(Michael Jackson, Gary)' but it will be regarded as an example of relation 'Born-in' because 'Born-in(Michael Jackson, Gary)'$\in\Delta$. 
@@ -165,6 +245,9 @@ Even when an entity pair is uniquely possessed by only one relation, a mention o
 As a multi-class classification problem, these noisy patterns should be absorbed into 'OTHER' class (i.e., as negative example). 
 The two reasons that causes false positive examples result from the KB itself.
 Hence, it is extremely challenging to solve them. 
+
+
+
 As for negative examples, this phenomenon is caused by incompleteness of adopted KB. 
 Although the size of the-state-of-the-art KB like Freebase has became larger and larger, it still only covers part of adopted text corpus. 
 In the latest Freebase, 'Location.contains' has about $75,687,676$ relation instances. 
@@ -177,38 +260,69 @@ the size of their intersection is limited and there are still many facts in Wiki
 In a word, original DS's method for constructing negative examples suffers from the possibility of generating false negative examples. 
 Besides, the training data is extremely unbalanced. 
 Even only one false negative example may be fatal for some small (unpopular, specific) relations because of their limited numbers of positive examples. 
+
+
+
 \subsection{Sparseness of Feature Space}
-The last but the most critical problem is the sparse feature space. 
-Original DS made use of several lexical and syntactic features which are the conjunction of several attributes of the context w.r.t. an entity pair. 
+A critical problem is the sparse feature space. 
+Most of related works made use of several lexical and syntactic features which are the conjunction of several attributes of the context w.r.t. an entity pair. 
 These features are extremely discriminative and results satisfactory precision. 
-In original DS's experiment, they report $400,000$ as the number of features in their logistic regression classifier. 
+In original DS's experiment, they report $400,000$ as the number of distinct features in their logistic regression classifier. 
 In our experiment, the number of features without filtering low document frequency ones is about one million and the distribution of features' volumn reveals the long tail property (See Figure \ref{fig:pv}). 
 \begin{figure}
 \centering
 \includegraphics[width=3.2in,height=1.8in]{pv.eps}
-\label{fig:pv}
 \caption{The Distribution of Pattern Volumn}
+\label{fig:pv}
 \end{figure}
-In essense, each relation is characterized by a set of features (patterns or say expressions) collected through DS. 
+In essense, each relation is characterized by a set of features (patterns or say expressions) collected through DS from given text corpus. 
 To express the semantics of a relation between two entities, human beings can think up infinite expressions 
 but the number of mentions in our training set is finite and thus it is impossible for collected expressions to cover all the possible expressions. 
 With those strict, binary features which have no good generalization properties, our model is determined to miss a lot of novel relation instances. 
 As an example, in my held-out evaluation, the number of held-out instances of relation 'Location.contains' that appear in testing corpus is about $31,643$. 
 After filtering out instances whose features have no intersection with features of training data, the number of remaining instances decreases to about $17,192$. 
-This observation tells us the reason of low recall. 
+This observation tells us one of the reasons of low recall. 
 
 
 
 \section{Related Work}
 Mike et al~\cite{mintz} proposed the paradigm of DS for relation extraction which opened one door for this research topic even though the method itself is quite simple and has many problems to be addressed. 
+
+
+
+\subsection{Fine-grained Entity Types}
+According to previous analysis, a fine-grained NER tagger is helpful for disambiguating several possible relations of a mention. 
+As Xiao et al~\cite{112nertag} pointed, the main challenges are 
+\begin{itemize}
+\item selection of a tag set, 
+\item automatically generating a training set, 
+\item a fast, accuracy classifier. 
+\end{itemize}
+They proposed an approach to tag each detected named entity with a subset of the universal entity type set (multi label). 
+In their approach, the number of entity types is $112$. 
+The $112$ entity types are Freebase types that contain at least $5$ instances (entities). 
+In contrast to entity type set which is designed by experts, directly making use of Freebase's entity types not only gives a collection of fine-grained entity types without human labor 
+but also leverages Freebase's hierarchical relationships between these entity types. 
+To automatically generate a training set, they adopted a weak supervision approach. 
+Specifically, the \emph{anchors} of Wiki articles provide not only the segmentation of named entities but also their corresponding types defined in Freebase. 
+They directly made use of the anchors of Wiki articles to train a CRF model for segmentation and a multi-class multi-label classifier for assiging NER tags. 
+Besides of traditional features for NER, they also adopted the ReVerb patterns~\cite{reverb} which are verb phrases indicating verbal relations. 
+From this respect, they imported relation information for NER. 
+%In detail, a segment of words with an anchor (hyperlink directs to the corresponding Wiki article of an entity) is labeled by Freebase types associated with the entity to which the anchor refers. 
+Zhang et al~\cite{xingxing} is the first one to apply the fine-grained entity types for relation extraction task. 
+However, their features are traditional mention features and context features but the relation information has not been made full use. 
+
+
+
 \subsection{Filtering Labeling Errors}
-Many works mainly focus on improving the quality of training data generated by DS. 
-One genre is using a generative model to re-estimate the association between patterns and relations in a unsupervised manner expecting that some false positive examples will be removed from a relation's pattern collection and some false negative will be explained by some considered relation  
-due to the similarity between patterns (the intrinsic structure)~\cite{takagenerative, yaolda, topicmodel}. 
+Many works mainly focus on improving the quality of training data heuristically labeled by DS. 
+One genre is giving more detailed or coarse representation of patterns to re-estimate the association between patterns and relations expecting that some false positive examples will be removed from a relation's pattern collection and some false negative will be explained by some considered relation  
+due to the co-occurrences (or similarity) between patterns~\cite{takagenerative, yaolda, topicmodel, passageretrieval}. 
 Another genre integrates this intuition into original discriminative model by multi-instance learning~\cite{riedel, hoffmann, surdeanu, 4layers}. 
 
 
 
+\subsubsection{Representation of Pattern}
 Those generative models seem complex but the underling intuition is very straight. 
 For instance, in Takamatsu et al~\cite{takagenerative}'s model, both relations and patterns are characterized by their associated entity pairs. 
 Specifically, let's denote the entity pairs of relation $r$ as $E_r$, the entity pairs of a pattern $s$ as $E_s$. 
@@ -225,6 +339,21 @@ or say that patterns are represented as fine-grained features and thus co-occurr
 
 
 
+To reduce false nagative examples, Wei et al~\cite{passageretrieval} proposed to leverage passage retrieval and psuedo relevance feedback with coarse features (patterns). 
+Firstly, sentences w.r.t. a relation $r$ are divided into three categories: 
+\begin{itemize}
+\item $POS(r)=\{s\in\Sigma\vert{}s\text{ contains some }(e_1,e_2)\text{ where }r(e_1,e_2)\in\Delta\}$ 
+\item $RAW(r)=\{s\in\Sigma\vert{}s\text{ contains some }(e_1,e_2)\text{ satisfing }r(E_1, E_2)\}$ 
+\item $NEG(r)=\{s\in\Sigma\vert{}s\text{ contains some }(e_1,e_2)\text{ satisfying }r(E_1, E_2)\text{ and }\exists{}e'\text{ s.t. }r(e_1,e')\in\Delta\text{ and }r(e_1,e_2)\notin\Delta\}$ 
+\end{itemize}
+Then a passage retrieval component (given a relation $r$ as query, retrieve sentences that are most likely to express $r$) is trained with positive examples $POS(r)$ and negative examples $NEG(r)$. 
+They use this component to select ``relevant'' passages (i.e., sentences) from $RAW(r)$ and then select entity pairs from these top-ranked sentences. 
+Selected entity pairs are added into KB to alleviate its incompleteness. 
+When a relation $r$ is a $1$-to-$n$ relation and our KB misses $r(e_1, e_2)$, the principle for constructing $NEG(r)$ is still likely to include false negative examples. 
+
+
+
+\subsubsection{Multi-instance Learning}
 As for multi-instance learning genre, they are based on the relaxed assumption that if $\exists r(e_1, e_2)\in\Delta$, \emph{at least one} of $(e_1, e_2)$'s mentions express $r$. 
 In most cases, this kind of models for relation extraction have a hidden layer of random variables to model the mention level labels 
 and a layer of random variables to model entity level labels which are influenced by mention level labels in a aggregation manner. 
@@ -244,26 +373,7 @@ In such case, the 'at-least-one' assumption is equivalent to original DS assumpt
 
 
 
-Another interesting work intending to reduce false nagative examples leverages passage retrieval~\cite{passageretrieval}. 
-Firstly, sentences w.r.t. a relation $r$ are divided into three categories: 
-\begin{itemize}
-\item $POS(r)=\{s\in\Sigma\vert{}s\text{ contains some }(e_1,e_2)\text{ where }r(e_1,e_2)\in\Delta\}$ 
-\item $RAW(r)=\{s\in\Sigma\vert{}s\text{ contains some }(e_1,e_2)\text{ satisfing }r(E_1, E_2)\}$ 
-\item $NEG(r)=\{s\in\Sigma\vert{}s\text{ contains some }(e_1,e_2)\text{ satisfying }r(E_1, E_2)\text{ and }\exists{}e'\text{ s.t. }r(e_1,e')\in\Delta\text{ and }r(e_1,e_2)\notin\Delta\}$ 
-\end{itemize}
-Then a passage retrieval component (given a relation $r$ as query, retrieve sentences that are most likely to express $r$) is trained with positive examples $POS(r)$ and negative examples $NEG(r)$. 
-They use this component to select ``relevant'' passages (i.e., sentences) from $RAW(r)$ and then select entity pairs from these top-ranked sentences. 
-Selected entity pairs are added into KB to alleviate its incompleteness. 
-When a relation $r$ is a $1$-to-$n$ relation and our KB misses $r(e_1, e_2)$, the principle for constructing $NEG(r)$ is still likely to include false negative examples. 
-\subsection{Fine-grained Entity Types}
-According to previous analysis, a fine-grained NER tagger is helpful for disambiguating several possible relations of a mention. 
-Xiao et al~\cite{112nertag} proposed an approach to tag words with subsets of the universal entity type set which consists of 112 NER tags (multi label). 
-Specifically, the 112 NER tags are Freebase types that contain at least $5$ instances (entities). 
-Their training set is built by DS where the anchors of Wiki articles are the source of information. 
-In detail, a segment of words with an anchor (hyperlink directs to the corresponding Wiki article of an entity) is labeled by Freebase types associated with the entity to which the anchor refers. 
-Zhang et al~\cite{xingxing} is the first one to apply the fine-grained entity types for relation extraction task. 
-However, their features are traditional mention features and context features but the relation information has not been made full use. 
-\subsection{Word Embedding}
+\subsection{Embedding}
 Up to now, all these approaches discussed made use of strict binary features which can't be generalized well. 
 To tackle the sparseness of feature space, word embedding related techniques are imported to relation extraction during the last two years. 
 Chen et al~\cite{cdq} propose to represent an entity by the average of its words' vector representation, a relation by the parameters of a neural tensor network. 
@@ -412,6 +522,13 @@ leveraging info-box of Wiki are valuable points for relation extraction.
 %However, relations are not exclusive. 
 %Multi-instance learning methods can not address such problem when the given entity pair appears only once in our corpus. 
 %In such cases, which relation will this mention be assigned is
+
+
+
+\section{Proposal}
+
+
+
 \bibliographystyle{abbrv}
 \bibliography{survey}
 \end{document}
