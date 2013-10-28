@@ -109,15 +109,15 @@ Since there have been several KB which are comparatively large, some efforts hav
 %For instance, '(Steve Jobs, Apple)' is an instance of the relation 'CEO-of'. 
 In summary, the task of \emph{Relation extraction} have the following different scenarios:
 \begin{itemize}
-\item relation types 
+\item relation set  
 	\begin{itemize}
 	\item only pre-defined relations are considered 
-	\item to discover unseen relations which are explicitly expressed by a surface string or characterized by a collection of related instances 
+	\item open information extraction (IE): to discover unseen relations which are explicitly expressed by a surface string or characterized by a collection of related instances 
 	\end{itemize}
-\item entity types 
+\item entity set  
 	\begin{itemize}
 	\item only existed entities are considered 
-	\item unseen entities are detected from some source 
+	\item unseen entities are detected from some source and taken into further consideration 
 	\end{itemize}
 \item source of novel facts 
 	\begin{itemize}
@@ -130,8 +130,8 @@ In summary, the task of \emph{Relation extraction} have the following different 
 	\item slot filling (i.e., one sub-task of knowledge base population (KBP)): given $e, p)$ to guess $v$
 	\end{itemize}
 \end{itemize}
-In this survey, we mainly consider the scenario of harvesting many unseen relation instances from a text corpus. 
-In our setting, unseen entities are detected and taken into consideration but we only try to extract facts for pre-defined relations. 
+In this survey, we mainly consider the scenario of harvesting many unseen instances of specific relations from a text corpus, 
+say that in our setting, unseen entities are detected and treated as arguments of relations but we only try to extract facts for pre-defined relations. 
 
 
 
@@ -139,19 +139,25 @@ As a sub-task of information extraction, most previous works assume that there i
 Then they focus on judging whether an entity pair posseses some relation. 
 Like most classification problems, existing approaches can be divided into the following three genres: 
 \begin{itemize}
-\item supervised learning: a training set is manually annotated where an observation is an entity pair as well as its feature representation and label is the relation connecting the two entities. 
+\item supervised learning: A training set is manually annotated where an observation is an entity pair as well as its feature representation and label is the relation connecting the two entities. 
 	\begin{itemize}
 	\item advantage: clean training data means ensurance of precision 
 	\item disadvantage: building such a training set is costly and not practical for scaling up. Thus it is limited to small dataset or specific domain
+	\end{itemize}
+\item bootstrapping: A small number of seed examples are carefully generated and used to train a model. Then new relation instances are discovered by current model and examples with high confidence are added to seed set for re-training. This procedure is repeated iteratively. 
+	\begin{itemize}
+	\item advantage: significantly reducing the number of training examples required in pure supervision case 
+	\item disadvantage: the iterative process may lead to semantic-drift 
 	\end{itemize}
 \item unsupervised learning: aggregates similar relation instances together by discovering the intrinsic strucrue within their feature space 
 	\begin{itemize}
 	\item advantage: can be applied to very large text corpora 
 	\item disadvantage: it is difficult to map each cluster of relation instances to a canonical realtion type defined in existed KB and thus novel relation instances can not be immediately inserted into KB
 	\end{itemize}
-\item Distant supervision (DS)~\cite{mintz}: provdies a paradigm to heuristically label a large corpus without human labor for training a relation extractor. 
+\item Distant supervision (DS)~\cite{mintz}: Provdies a paradigm to heuristically label a large corpus without human labor for training a relation extractor. 
 \end{itemize}
 In this survey, we focus on distant supervision for relation extraction. 
+We recommand Bach et al~\cite{review} to readers who are interested in a comprehensive review of relation extraction. 
 
 
 
@@ -323,6 +329,14 @@ Another genre integrates this intuition into original discriminative model by mu
 
 
 \subsubsection{Representation of Pattern}
+In essence, DS provides a way to collect difference expressions (patterns) for each specific relation. 
+However, as strict binary features, it is impossible to compare distinguishing features (patterns), or say calculate similarity between them. 
+If patterns are represented in a form which enables comparison between them (e.g., divide original conjunctions into individual attributes of sentences), 
+even though there is no supervision, a generative model can capture the intrinsic structure of feature space and re-estimate the association between features (patterns) and relations. 
+In this way, some labeling errors may be revised so that the quality of training data is improved. 
+
+
+
 Those generative models seem complex but the underling intuition is very straight. 
 For instance, in Takamatsu et al~\cite{takagenerative}'s model, both relations and patterns are characterized by their associated entity pairs. 
 Specifically, let's denote the entity pairs of relation $r$ as $E_r$, the entity pairs of a pattern $s$ as $E_s$. 
@@ -353,9 +367,9 @@ When a relation $r$ is a $1$-to-$n$ relation and our KB misses $r(e_1, e_2)$, th
 
 
 
-\subsubsection{Multi-instance Learning}
+\subsubsection{Multi-instance Learning} 
 As for multi-instance learning genre, they are based on the relaxed assumption that if $\exists r(e_1, e_2)\in\Delta$, \emph{at least one} of $(e_1, e_2)$'s mentions express $r$. 
-In most cases, this kind of models for relation extraction have a hidden layer of random variables to model the mention level labels 
+In most cases, this kind of models for relation extraction have a hidden layer of random variables to model the mention level labels  
 and a layer of random variables to model entity level labels which are influenced by mention level labels in a aggregation manner. 
 The entity level is used to inject supervision into the model. 
 To reflect the 'at-least-one' assumption, Riedel et al~\cite{riedel} proposed to model the event that whether the $i$-th mention of an entity pair expresses a relation $r$ by a binary hidden variable $Z_i$. 
@@ -368,15 +382,27 @@ Surdeanu et al~\cite{surdeanu} proposed a three layer model which seems similar 
 In such case, a mention level prediction in which only 'Born-in' is activated may also have opportunity to trigger 'Live-in' label at entity level if for most entity pairs, there exists a strong correlation between them. 
 Min et al~\cite{4layers} advance further to seperate entity level labels into two layers, one as hidden layer modeling the predictions, one as observed supervision. 
 By allowing an inconsistent states between the hidden layer of entity level and supervision, an entity pairs may be associated with some relation which is supported by mention level labels rather than existed ground truth provided by KB which seems helpful for alleviating the influences made by incompleteness of KB. 
-Takamatsu et al.~\cite{takamatsu} pointed out that $91.7\%$ entity pairs appear only once in Wik articles. 
+Takamatsu et al.~\cite{takamatsu} pointed out that $91.7\%$ entity pairs appear only once in Wiki articles. 
 In such case, the 'at-least-one' assumption is equivalent to original DS assumption for these multi-instance learning approaches. 
 
 
 
 \subsection{Embedding}
-Up to now, all these approaches discussed made use of strict binary features which can't be generalized well. 
-To tackle the sparseness of feature space, word embedding related techniques are imported to relation extraction during the last two years. 
-Chen et al~\cite{cdq} propose to represent an entity by the average of its words' vector representation, a relation by the parameters of a neural tensor network. 
+Up to now, all these approaches discussed made use of strict binary features which lack of local smooth property and thus can't generalize well. 
+Each relation is characterized by a collection of such features. 
+It is definitely a bad representation of a specific relation. 
+To tackle the sparseness of feature space, word embedding related techniques are imported to relation extraction during the last two years~\cite{cdq, embedding, embedding1}. 
+
+
+
+Most of traditional dimension reduction approaches fit a common pipeline where a similarity matrix is generated firstly and then factorized to select now basis. 
+For a graph, the similarity matrix is usually the connectivity between nodes. 
+However, in relation extraction, both people are interested in both nodes (entities) and edges (relations). 
+Thus, how to embed a relation in a reasonable way is the most critical point. 
+A straightforward idea is to represent each relation by a linear mapping (matrix) from a source entity to a destination entity. 
+Under this hyperthesis, the constraints used to estimate parameters (entries of a matrix) is usually minimizing $\Vert\mathbf{v}-R\mathbf{e}\Vert$. 
+Naturally, quadratic form is also explored in which a true relation instance $(e_1, e_2)$ is assigned a higher score $g_{R}(\mathbf{e}_1, \mathbf{e}_2)=\mathbf{e}_{1}^{\mathrm{T}}R\mathbf{e}_2$ than a false instance. 
+Furthermore, Chen et al~\cite{cdq} propose to represent an entity by the average of its words' vector representation, a relation by the parameters of a neural tensor network. 
 Given an entity pair $(e_1, e_2)$, a score of how plausible they are in a certain relationship $r$ is computed by 
 $g(e_1, r, e_2)=U^{\mathrm{T}}tanh\{e_{1}^{\mathrm{T}}W_{r}^{1:k}e_2+V_{r}\begin{bmatrix}e_1\\e_2\\\end{bmatrix}+b_{r}\}$ where 
 $e_{1}^{\mathrm{T}}W_{r}^{1:k}e_{2}$ results a $k$-dimensional vector $h$ where 
@@ -384,8 +410,11 @@ $h_{i}=e_{1}^{\mathrm{T}}W_{r}^{i}e_2$.
 To estimate the parameters describing a certain relation $r$, they acquire supervision directly from adopted KB. 
 The intuition is quite simple, any ground triple in KB should achieve a larger score than any invalid triple which 
 is constructed by fixing $e1, r$ and randomly selecting a corrupted entity $e_c$. 
-Weston et al~\cite{embedding} also leveraging word embedding related technique especially a reasonable geometrical explaination of how a relation connects two entities
-which seems difficult to express in a traditional model. 
+
+
+
+Weston et al~\cite{embedding} also leverage word embedding related technique especially a reasonable geometrical explaination of how a relation connects two entities
+which seems more reasonable than previous embedding models. 
 In their model, constraints for parameter estimation are drawn from both DS and KB. 
 Firstly, a mention-relation pair is scored by $S_{m2r}(m, r)=\mathbf{f}(m)^{\mathrm{T}}\mathbf{r}$ where 
 $\mathbf{f}(m)=W^{\mathrm{T}}\boldsymbol{\Phi}(m)$ and $\mathbf{r}$ is the embedding of relation $r$. 
@@ -398,8 +427,17 @@ This intuitive geometric explaination naturally inspired them to minimize
 $S_{kb}(\mathbf{h},\mathbf{r},\mathbf{t})=\Vert \mathbf{h}+\mathbf{r}-\mathbf{t} \Vert_{2}^{2}$. 
 Specifically, they adopted a ranking loss, say that appling $S_{kb}()$ to any ground truth triple should result a score 
 which is larger than one plus a score generated by appling $S_{kb}()$ to a corrupted triple. 
-\subsection{Knowledge Base Population (KBP)}
-I also surveyed works on knowlege base population (KBP)~\cite{overviewkbp10, kbp12nyu, cunvkbp10}. 
+However, the translation based intuition doesn't make any sense for $1$-to-$n$ (or $n$-to-$1$) relations and symmetrical relations like 'Brother-of'. 
+Finally, we have to point that a translation dominated by a $k$-dimensional vector can be expressed by a linear mapping characterized by a $k+1$-dimensional matrix. 
+
+
+
+\subsection{Miscellaneous}
+
+
+
+\subsubsection{Knowledge Base Population (KBP)}
+I also surveyed works on KBP~\cite{overviewkbp10, kbp12nyu, cunykbp10}. 
 The KBP contest is so relevant with relation extraction. 
 It mainly consists of two sub-tasks:
 \begin{itemize}
@@ -424,11 +462,26 @@ Besides, they gave an interesting approach for integrating these two tasks toget
 Each entity node as well as the given query is characterized by its profile which is defined as 
 a list of attributes as well as their value (s).
 The value (s) of attributes of an entity node are harvested by slot filling. 
-\subsection{Wikipedia's Structures}
+
+
+
+\subsubsection{Wikipedia's Structures}
 Most approaches on relation extraction process tens of relations. 
 Hoffmann et al~\cite{learn5000} proposed a method to collect relation instances for about 5000 relations. 
-Although their setting is not identical as normal relation extraction, enriching lexicon as a feature and 
-leveraging info-box of Wiki are valuable points for relation extraction. 
+Although their setting is not identical as traditional relation extraction, preparing rich lexicon to calculate lexicon features and 
+leveraging info-box within Wiki articles to provide relation (attribute or predicate) schema of a document (article) are inspiring ideas for future works. 
+
+
+
+\subsubsection{Open Information Extraction}
+Open information extraction (Open IE) does not require specific relations as input and automatically discovers novel relations as well as words which are indicative of corresponding relations. 
+Banko et al~\cite{openvstraditional} gave an important observation that only several lxico-syntactic pattern can cover most (about $95\%$) sentences which express the meaning of a certain binary relation). 
+Inspired by this observation, Fader et al~\cite{reverb} build the-state-of-the-art open IE system---ReVerb. 
+The differences deserve our attention are: 
+\begin{itemize}
+\item For relations which are usually expressed as a verbal function, those lexico-syntactic pattern should be integarted into our model. We believed that these patterns have the potential to standardize or validate extracted features. 
+\item In traditional relation extraction task, entities are firstly detected and features are extracted w.r.t. an detected entity pair. In contrast, ReVerb firstly locates the verb phrases of relations and then considers nearest entities as arguments. 
+\end{itemize}
 %Original DS leads to many false positive examples which may dilute the discriminative capability of useful features. 
 %For instance, consider sentences ``Michael Jackson was born in Gary.'' and ``Michael Jackson moved from Gary.'', 
 %suppose ``place\_of\_birth(Michael Jackson, Gary)'' is included in adopted KB, 
